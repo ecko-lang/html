@@ -1,0 +1,10 @@
+{
+  "name": "html",
+  "version": "0.1.0",
+  "entrypoint": "main.ecko",
+  "description": "A tolerant HTML parser for Ecko: parse to a node tree, extract text, and find elements. Great for feeding web content to ai. Pure - no capabilities.",
+  "author": "Sean Nieuwoudt <sean@underwulf.com>",
+  "license": "MIT",
+  "capabilities": [],
+  "dependencies": {}
+}

@@ -1,0 +1,15 @@
+# html demo: parse a fragment, extract text and a link.
+import "./main.ecko"
+html = main
+
+src = "<article><h1>Ecko</h1><p>The language where <b>ai</b> is a keyword.</p><a href=\"https://ecko.sh\">the site</a></article>"
+doc = html.parse(src)
+
+body_text = html.text(doc)
+link = html.find(doc, "a")[0]
+href = html.attr(link, "href")
+n_head = len(html.find(doc, "h1"))
+
+print("text:     {body_text}")
+print("link:     {href}")
+print("headings: {n_head}")

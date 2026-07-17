@@ -1,0 +1,42 @@
+# Tests for the html package - offline, deterministic.
+import std.test
+import "../main.ecko"
+html = main
+
+test.case("parse elements, attributes, and text", || {
+    doc = html.parse("<div class=\"box\"><p>Hello <b>world</b></p></div>")
+    div = html.find(doc, "div")[0]
+    test.eq(div.tag, "div")
+    test.eq(html.attr(div, "class"), "box")
+    p = html.find(doc, "p")[0]
+    test.eq(html.text(p), "Hello world")
+})
+
+test.case("text strips all tags", || {
+    doc = html.parse("<article><h1>Title</h1><p>Body <em>text</em>.</p></article>")
+    test.eq(html.text(doc), "TitleBody text.")
+})
+
+test.case("find returns all matching descendants", || {
+    doc = html.parse("<ul><li>a</li><li>b</li><li>c</li></ul>")
+    items = html.find(doc, "li")
+    test.eq(len(items), 3)
+    test.eq(html.text(items[1]), "b")
+})
+
+test.case("void elements and self-closing tags", || {
+    doc = html.parse("<p>line<br>break<img src=\"x.png\"/></p>")
+    test.eq(len(html.find(doc, "br")), 1)
+    test.eq(html.attr(html.find(doc, "img")[0], "src"), "x.png")
+    test.eq(html.text(html.find(doc, "p")[0]), "linebreak")
+})
+
+test.case("comments are skipped", || {
+    doc = html.parse("<div><!-- hi -->text</div>")
+    test.eq(html.text(doc), "text")
+})
+
+test.case("a boolean attribute is present with an empty value", || {
+    doc = html.parse("<input disabled>")
+    test.eq(html.attr(html.find(doc, "input")[0], "disabled"), "")
+})

@@ -1,0 +1,213 @@
+# html - a tolerant HTML parser for Ecko.
+#
+#   import html
+#
+#   doc = html.parse("<article><h1>Hi</h1><p>Body</p></article>")
+#   html.text(doc)            # "HiBody"  - all tags stripped (great for `ai`)
+#   html.find(doc, "p")       # [ <p> node ]
+#   html.attr(node, "href")   # attribute value or null
+#
+# A node is a map: elements are { tag, attrs, children }, text is
+# { tag: "#text", text }, and the document root is { tag: "#root", ... }.
+# Recursive-descent over the character list; forgiving of real-world markup.
+# Pure Ecko; no capabilities. (Exports `find`, which shadows the builtin - but
+# this module never calls the builtin, so no `core.find` is needed.)
+
+VOID = [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+]
+
+# ---- small char helpers ----------------------------------------------------
+fn drop_n(l, n) {
+    if n <= 0 { l } else if n >= len(l) { [] } else { reverse(take(reverse(l), len(l) - n)) }
+}
+
+fn slice(cs, a, b) = if b <= a { "" } else { join(take(drop_n(cs, a), b - a), "") }
+
+fn at(cs, i) = if i < len(cs) { cs[i] } else { "" }
+
+fn is_ws(c) = c == " " or c == "\t" or c == "\n" or c == "\r"
+
+fn is_name_char(c) = not (is_ws(c) or c == ">" or c == "/" or c == "=" or c == "<" or c == "")
+
+# read_name(cs, i) -> [name, next_i]
+fn read_name(cs, i) {
+    mut j = i
+    while j < len(cs) and is_name_char(cs[j]) {
+        j = j + 1
+    }
+    [slice(cs, i, j), j]
+}
+
+# read_text(cs, i) -> [text, next_i] (up to the next "<")
+fn read_text(cs, i) {
+    mut j = i
+    while j < len(cs) and cs[j] != "<" {
+        j = j + 1
+    }
+    [slice(cs, i, j), j]
+}
+
+# read_attr_value(cs, i) -> [value, next_i]
+fn read_attr_value(cs, i) {
+    q = at(cs, i)
+    if q == "\"" or q == "'" {
+        mut j = i + 1
+        while j < len(cs) and cs[j] != q {
+            j = j + 1
+        }
+        [slice(cs, i + 1, j), j + 1]
+    } else {
+        mut j = i
+        while j < len(cs) and not is_ws(cs[j]) and cs[j] != ">" {
+            j = j + 1
+        }
+        [slice(cs, i, j), j]
+    }
+}
+
+# read_attrs(cs, i) -> [attrs, next_i (past ">"), self_close]
+fn read_attrs(cs, i) {
+    mut m = empty_map()
+    mut j = i
+    mut sc = false
+    while j < len(cs) and cs[j] != ">" {
+        if is_ws(cs[j]) { j = j + 1 } else if cs[j] == "/" {
+            sc = true
+            j = j + 1
+        } else {
+            nm = read_name(cs, j)
+            name = nm[0]
+            if name == "" { j = j + 1 } else {
+                j = nm[1]
+                while j < len(cs) and is_ws(cs[j]) {
+                    j = j + 1
+                }
+                if at(cs, j) == "=" {
+                    j = j + 1
+                    while j < len(cs) and is_ws(cs[j]) {
+                        j = j + 1
+                    }
+                    v = read_attr_value(cs, j)
+                    m = insert(m, lower(name), v[0])
+                    j = v[1]
+                } else { m = insert(m, lower(name), "") }
+            }
+        }
+    }
+    [m, j + 1, sc]
+}
+
+fn is_comment(cs, i) = slice(cs, i, i + 4) == "<!--"
+
+fn skip_comment(cs, i) {
+    mut j = i + 4
+    while j < len(cs) and slice(cs, j, j + 3) != "-->" {
+        j = j + 1
+    }
+    j + 3
+}
+
+# parse_element(cs, i) -> [node, next_i]; i is at "<".
+fn parse_element(cs, i) {
+    nm = read_name(cs, i + 1)
+    tag = lower(nm[0])
+    a = read_attrs(cs, nm[1])
+    attrs = a[0]
+    after = a[1]
+    self_close = a[2]
+    if self_close or contains(VOID, tag) { [{ tag: tag, attrs: attrs, children: [] }, after] } else {
+        kids = parse_nodes(cs, after)
+        [{ tag: tag, attrs: attrs, children: kids[0] }, kids[1]]
+    }
+}
+
+# parse_nodes(cs, i) -> [children, next_i]. Reads siblings until EOF or a close
+# tag (consumed). Any close tag ends the current level - correct for
+# well-nested markup, forgiving otherwise.
+fn parse_nodes(cs, i) {
+    mut children = []
+    mut j = i
+    mut done = false
+    while not done and j < len(cs) {
+        if cs[j] == "<" {
+            if at(cs, j + 1) == "/" {
+                # close tag: skip to and past ">"
+                mut k = j + 2
+                while k < len(cs) and cs[k] != ">" {
+                    k = k + 1
+                }
+                j = k + 1
+                done = true
+            } else if is_comment(cs, j) { j = skip_comment(cs, j) } else if at(cs, j + 1) == "!" {
+                # doctype / other declaration: skip to ">"
+                mut k = j + 1
+                while k < len(cs) and cs[k] != ">" {
+                    k = k + 1
+                }
+                j = k + 1
+            } else {
+                el = parse_element(cs, j)
+                children = push(children, el[0])
+                j = el[1]
+            }
+        } else {
+            t = read_text(cs, j)
+            children = push(children, { tag: "#text", text: t[0] })
+            j = t[1]
+        }
+    }
+    [children, j]
+}
+
+# ---- public API ------------------------------------------------------------
+export fn parse(src) {
+    r = parse_nodes(chars(src), 0)
+    { tag: "#root", attrs: empty_map(), children: r[0] }
+}
+
+# text(node) -> all descendant text concatenated, tags stripped.
+export fn text(node) {
+    if get(node, "tag") == "#text" { get(node, "text") } else {
+        mut s = ""
+        for child in get(node, "children") {
+            s = s + text(child)
+        }
+        s
+    }
+}
+
+# find(node, tag) -> every descendant element with that tag (case-insensitive).
+export fn find(node, tag) {
+    t = lower(tag)
+    mut out = []
+    kids = get(node, "children")
+    if kids != null {
+        for child in kids {
+            if get(child, "tag") == t { out = push(out, child) }
+            for d in find(child, t) {
+                out = push(out, d)
+            }
+        }
+    }
+    out
+}
+
+# attr(node, name) -> the attribute value, or null.
+export fn attr(node, name) {
+    a = get(node, "attrs")
+    if a == null { null } else { get(a, lower(name)) }
+}
