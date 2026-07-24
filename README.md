@@ -1,8 +1,8 @@
-# html
+# HTML - Ecko Std Lib Package
 
 A tolerant HTML parser for [Ecko](https://ecko.sh), written in Ecko. Parse a
 page into a node tree, strip it to text (great for feeding web content to
-`ai`), or find elements. Pure — no capabilities.
+`ai`), or find elements.
 
 ## Install
 
@@ -51,4 +51,4 @@ ecko test tests/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
