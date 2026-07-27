@@ -129,7 +129,9 @@ fn parse_element(cs, i) {
     attrs = a[0]
     after = a[1]
     self_close = a[2]
-    if self_close or contains(VOID, tag) { [{ tag: tag, attrs: attrs, children: [] }, after] } else {
+    if self_close or contains(VOID, tag) {
+        [{ tag: tag, attrs: attrs, children: [] }, after]
+    } else {
         kids = parse_nodes(cs, after)
         [{ tag: tag, attrs: attrs, children: kids[0] }, kids[1]]
     }
