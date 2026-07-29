@@ -176,12 +176,14 @@ fn parse_nodes(cs, i) {
 }
 
 # ---- public API ------------------------------------------------------------
+## Parse an HTML document into a node tree. The root is a `#root` node whose
+## children are the top-level elements. Tolerant of unclosed void elements.
 export fn parse(src) {
     r = parse_nodes(chars(src), 0)
     { tag: "#root", attrs: empty_map(), children: r[0] }
 }
 
-# text(node) -> all descendant text concatenated, tags stripped.
+## text(node) -> all descendant text concatenated, tags stripped.
 export fn text(node) {
     if get(node, "tag") == "#text" { get(node, "text") } else {
         mut s = ""
@@ -192,7 +194,7 @@ export fn text(node) {
     }
 }
 
-# find(node, tag) -> every descendant element with that tag (case-insensitive).
+## find(node, tag) -> every descendant element with that tag (case-insensitive).
 export fn find(node, tag) {
     t = lower(tag)
     mut out = []
@@ -208,7 +210,7 @@ export fn find(node, tag) {
     out
 }
 
-# attr(node, name) -> the attribute value, or null.
+## attr(node, name) -> the attribute value, or null.
 export fn attr(node, name) {
     a = get(node, "attrs")
     if a == null { null } else { get(a, lower(name)) }
