@@ -7,7 +7,7 @@ page into a node tree, strip it to text (great for feeding web content to
 ## Install
 
 ```bash
-ecko get github.com/ecko-sh/html
+ecko get github.com/ecko-lang/html
 ```
 
 ## Usage
