@@ -1,6 +1,6 @@
 {
   "module": "github.com/ecko-lang/html",
-  "version": "0.9.5",
+  "version": "0.10.1",
   "entrypoint": "main.ecko",
   "description": "A tolerant HTML parser for Ecko: parse to a node tree, extract text, and find elements. Great for feeding web content to ai. Pure - no capabilities.",
   "author": "Sean Nieuwoudt <sean@underwulf.com>",
