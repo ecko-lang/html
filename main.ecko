@@ -33,7 +33,12 @@ VOID = [
 # ---- small char helpers ----------------------------------------------------
 # A half-open slice of a char list, returned as a string. Named `substr`
 # rather than `slice` so it does not shadow the builtin of that name.
-fn substr(cs, a, b) = if b <= a { "" } else { join(take(drop(cs, a), b - a), "") }
+#
+# `cs[a..b]` copies only the `b - a` chars wanted. This used to be
+# `take(drop(cs, a), b - a)`, and `drop` copies everything after `a` - the
+# rest of the document, once per tag name, attribute and text run - which
+# made `parse` quadratic: a 17 KB page took 632 ms, a 60 KB one seconds.
+fn substr(cs, a, b) = if b <= a { "" } else { join(cs[a..b], "") }
 
 fn at(cs, i) = if i < len(cs) { cs[i] } else { "" }
 

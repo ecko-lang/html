@@ -1,5 +1,6 @@
 # Tests for the html package - offline, deterministic.
 import std.test
+import std.time
 import "../main.ecko"
 html = main
 
@@ -39,4 +40,26 @@ test.case("comments are skipped", fn() {
 test.case("a boolean attribute is present with an empty value", fn() {
     doc = html.parse("<input disabled>")
     test.eq(html.attr(html.find(doc, "input")[0], "disabled"), "")
+})
+
+test.case("an unterminated comment at the end of the input ends the parse", fn() {
+    doc = html.parse("<p>kept</p><!-- never closed")
+    test.eq(html.text(doc), "kept")
+})
+
+test.case("a large page parses in linear time", fn() {
+    # Reading each token used to copy the rest of the document, so this page
+    # (about 200 KB) took over a minute; it now takes well under a second.
+    mut rows = []
+    for i in 0..2400 {
+        rows = push(
+            rows,
+            "<div class=\"p\"><a href=\"/p/{i}\">Item {i}</a><p>text <b>{i}</b></p></div>",
+        )
+    }
+    page = "<html><body>{join(rows, "")}</body></html>"
+    start = time.monotonic()
+    doc = html.parse(page)
+    test.eq(len(html.find(doc, "a")), 2400)
+    test.ok(time.monotonic() - start < 5000, "parse took {time.monotonic() - start} ms")
 })
